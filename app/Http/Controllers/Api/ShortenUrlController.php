@@ -7,7 +7,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\ShortenedUrl;
+use Exception;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ShortenUrlController extends Controller
 {
@@ -28,19 +31,39 @@ class ShortenUrlController extends Controller
 
     public function shortenUrl(Request $request)
     {
-        $userId = Auth::id();
-        $request->validate([
-            'original_url' => 'required|url'
-        ]);
 
-        $short_code = Str::random(6);
+        try {
 
-        $url = ShortenedUrl::create([
-            'user_id' => $userId,
-            'original_url' => $request->original_url,
-            'short_code' => $short_code
-        ]);
+            $userId = Auth::id();
+            $request->validate([
+                'original_url' => 'required|url'
+            ]);
 
-        return response()->json($url);
+            $short_code = Str::random(6);
+
+            $url = ShortenedUrl::create([
+                'user_id' => $userId,
+                'original_url' => $request->original_url,
+                'short_code' => $short_code
+            ]);
+
+            return response()->json($url);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+
+        } catch (Exception $e) {
+            Log::error('Register API Error', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Registration failed',
+            ], 500);
+        }
     }
 }
